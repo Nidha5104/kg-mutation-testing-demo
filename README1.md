@@ -1,4 +1,4 @@
-# KG Mutation Testing — Interactive Research Dashboard
+# KG Mutation Testing - Interactive Research Dashboard
 
 Reuses your notebook's actual implementation. No metrics, formulas, mutation operators,
 recommender, or thresholds were changed or invented.
