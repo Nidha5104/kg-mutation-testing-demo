@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>KG Mutation Testing — Research Dashboard</title>
+<style>
+  :root{
+    --bg:#f7f8fc; --card:#ffffff; --border:#e4e7f2;
+    --ink:#1c2333; --sub:#5b6478; --indigo:#4338ca; --indigo-soft:#eef0fd;
+    --green:#0f7b45; --green-soft:#e7f7ee; --amber:#b45309; --amber-soft:#fef3e0;
+    --red:#b3261e; --red-soft:#fdeceb; --blue:#2563eb;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI",Inter,system-ui,-apple-system,sans-serif;}
+  header{padding:22px 32px 10px;border-bottom:1px solid var(--border);background:var(--card);}
+  header h1{margin:0 0 2px;font-size:20px;font-weight:700;letter-spacing:.2px;}
+  header p{margin:0;color:var(--sub);font-size:13px;}
+  .container{max-width:1180px;margin:0 auto;padding:22px 24px 60px;}
+  .stepper{display:flex;gap:6px;margin:18px 0 26px;flex-wrap:wrap;}
+  .step{flex:1;min-width:120px;background:var(--card);border:1px solid var(--border);border-radius:10px;
+        padding:9px 12px;font-size:12.5px;color:var(--sub);text-align:center;position:relative;}
+  .step.active{background:var(--indigo-soft);border-color:#c7ccf7;color:var(--indigo);font-weight:600;}
+  .grid{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px 20px;margin-bottom:18px;}
+  .card h2{font-size:14px;margin:0 0 12px;color:var(--ink);font-weight:700;}
+  .card h3{font-size:12.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--sub);margin:0 0 8px;}
+  label{font-size:12.5px;color:var(--sub);display:block;margin:12px 0 5px;}
+  select,button{font-family:inherit;font-size:13.5px;}
+  select{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--ink);}
+  .op-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;}
+  .op-btn{border:1px solid var(--border);background:#fff;border-radius:9px;padding:9px 8px;font-size:12px;text-align:left;
+          cursor:pointer;color:var(--sub);line-height:1.35;}
+  .op-btn b{display:block;color:var(--ink);font-size:13px;}
+  .op-btn.sel{border-color:var(--indigo);background:var(--indigo-soft);color:var(--indigo);}
+  .op-btn.sel b{color:var(--indigo);}
+  .cand-list{max-height:230px;overflow-y:auto;border:1px solid var(--border);border-radius:9px;}
+  .cand-row{padding:9px 10px;border-bottom:1px solid var(--border);cursor:pointer;font-size:12.5px;}
+  .cand-row:last-child{border-bottom:none;}
+  .cand-row:hover{background:#fafaff;}
+  .cand-row.sel{background:var(--indigo-soft);}
+  .cand-row .r{color:var(--sub);font-size:11.5px;}
+  button.primary{width:100%;margin-top:14px;background:var(--indigo);color:#fff;border:none;border-radius:9px;
+                  padding:11px;font-weight:600;cursor:pointer;font-size:13.5px;}
+  button.primary:disabled{background:#c7c9d9;cursor:not-allowed;}
+  button.secondary{width:100%;background:#fff;color:var(--indigo);border:1px solid var(--indigo);border-radius:9px;
+                    padding:9px;font-weight:600;cursor:pointer;font-size:12.5px;margin-top:10px;}
+  .pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600;}
+  .kg-wrap{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .kg-box{border:1px solid var(--border);border-radius:12px;padding:14px;background:#fbfbfe;}
+  .kg-box h4{margin:0 0 10px;font-size:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.4px;}
+  svg{width:100%;height:220px;}
+  .edge-removed{stroke:#c9433c;stroke-dasharray:5 4;}
+  .edge-added{stroke:#0f7b45;}
+  .edge-same{stroke:#9aa2bb;}
+  .node-txt{font-size:11px;fill:var(--ink);}
+  .node-txt.dim{fill:var(--sub);}
+  .top10-wrap{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .top10-col h4{margin:0 0 8px;font-size:12px;color:var(--sub);text-transform:uppercase;}
+  .p-row{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:8px;margin-bottom:5px;font-size:12.5px;
+         border:1px solid transparent;}
+  .p-row .rank{width:20px;color:var(--sub);font-weight:600;}
+  .p-row.unchanged{background:#f6f7fb;}
+  .p-row.new{background:var(--green-soft);border-color:#bfe6cf;}
+  .p-row.disappeared{background:var(--red-soft);border-color:#f3c9c6;text-decoration:line-through;color:#9a5551;}
+  .p-row.moved_up{background:#eaf3ff;border-color:#bcd8fb;}
+  .p-row.moved_down{background:#fff6e6;border-color:#f4dfab;}
+  .badge{font-size:10px;padding:1px 6px;border-radius:6px;margin-left:auto;font-weight:700;}
+  .metrics-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .metric{border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:#fbfbfe;}
+  .metric .v{font-size:19px;font-weight:700;}
+  .metric .l{font-size:11px;color:var(--sub);margin-top:2px;}
+  .br-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px;}
+  .br-chip{border-radius:9px;padding:8px 8px;font-size:11px;text-align:center;border:1px solid var(--border);}
+  .br-chip.fired{background:var(--red-soft);border-color:#f3c9c6;color:var(--red);font-weight:700;}
+  .br-chip.ok{background:#f6f7fb;color:var(--sub);}
+  .anomaly-banner{border-radius:12px;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;
+                   margin-bottom:14px;}
+  .anomaly-banner.anom{background:var(--amber-soft);border:1px solid #f0d7ab;}
+  .anomaly-banner.non{background:var(--green-soft);border:1px solid #bfe6cf;}
+  .anomaly-banner .verdict{font-size:18px;font-weight:800;}
+  .anomaly-banner.anom .verdict{color:var(--amber);}
+  .anomaly-banner.non .verdict{color:var(--green);}
+  .bar-wrap{position:relative;height:10px;background:#e9ebf5;border-radius:6px;margin-top:10px;}
+  .bar-fill{position:absolute;top:0;left:0;height:100%;border-radius:6px;background:var(--indigo);}
+  .cutoff-mark{position:absolute;top:-4px;width:2px;height:18px;background:#1c2333;}
+  .interp{font-size:13px;line-height:1.65;color:#333a4d;}
+  .empty{color:var(--sub);font-size:13px;padding:30px 10px;text-align:center;}
+  .note{font-size:11.5px;color:var(--sub);margin-top:8px;}
+  .subtag{color:var(--sub);font-size:12px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Testing Behavioral Robustness of Knowledge-Graph-Based Recommendation Systems</h1>
+  <p>Metamorphic testing via semantic graph mutations — interactive research demo (TheLook eCommerce KG)</p>
+</header>
+<div class="container">
+  <div class="stepper" id="stepper"></div>
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>1 · Select eligible user</h2>
+        <select id="userSelect"><option>Loading users…</option></select>
+        <div id="userInfo" class="note"></div>
+
+        <h2 style="margin-top:18px;">2 · Select mutation operator</h2>
+        <div class="op-grid" id="opGrid"></div>
+
+        <h2 style="margin-top:18px;">3 · Select a valid mutation instance</h2>
+        <button class="secondary" id="loadCandBtn">Find valid candidates</button>
+        <div class="cand-list" id="candList" style="margin-top:10px;"></div>
+
+        <button class="primary" id="runBtn" disabled>Run mutation test</button>
+        <div class="note" id="runNote"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" id="resultsCard">
+        <div class="empty">Select a user, an operator (M1–M5), and a valid mutation instance on the left, then run the test to see the Knowledge Graph mutation, Top-10 comparison, behavioral metrics and anomaly result here.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = "http://localhost:5050/api";
+let META = null, USERS = [], CANDIDATES = [];
+let state = { user_id: null, mtype: "M1", product_id: null };
+
+const stages = ["Original KG","Mutation","Mutated KG","Recommendation Comparison","Behavioural Testing","Anomaly Detection"];
+function renderStepper(activeIdx){
+  const el = document.getElementById("stepper");
+  el.innerHTML = stages.map((s,i)=>`<div class="step ${i<=activeIdx?'active':''}">${i+1}. ${s}</div>`).join("");
+}
+renderStepper(-1);
+
+async function init(){
+  META = await (await fetch(`${API}/meta`)).json();
+  const opGrid = document.getElementById("opGrid");
+  opGrid.innerHTML = META.mutation_types.map(m=>
+    `<div class="op-btn ${m.code==='M1'?'sel':''}" data-code="${m.code}"><b>${m.code}</b>${m.name}</div>`
+  ).join("");
+  opGrid.querySelectorAll(".op-btn").forEach(b=>b.addEventListener("click", ()=>{
+    opGrid.querySelectorAll(".op-btn").forEach(x=>x.classList.remove("sel"));
+    b.classList.add("sel");
+    state.mtype = b.dataset.code;
+    state.product_id = null;
+    document.getElementById("candList").innerHTML = "";
+    document.getElementById("runBtn").disabled = true;
+  }));
+
+  USERS = await (await fetch(`${API}/users`)).json();
+  const sel = document.getElementById("userSelect");
+  sel.innerHTML = USERS.map(u=>`<option value="${u.user_id}">User ${u.user_id} — ${u.n_purchases} purchases, ${u.n_categories} categories</option>`).join("");
+  state.user_id = USERS[0].user_id;
+  updateUserInfo();
+  sel.addEventListener("change", e=>{ state.user_id = parseInt(e.target.value); updateUserInfo(); });
+
+  document.getElementById("loadCandBtn").addEventListener("click", loadCandidates);
+  document.getElementById("runBtn").addEventListener("click", runTest);
+}
+function updateUserInfo(){
+  const u = USERS.find(x=>x.user_id===state.user_id);
+  document.getElementById("userInfo").textContent = `Sample purchased categories: ${u.sample_categories.join(", ")}`;
+}
+
+async function loadCandidates(){
+  document.getElementById("candList").innerHTML = `<div class="empty">Scanning candidate pool for domain-valid ${state.mtype} instances…</div>`;
+  const r = await fetch(`${API}/users/${state.user_id}/candidates?mutation_type=${state.mtype}`);
+  CANDIDATES = await r.json();
+  const list = document.getElementById("candList");
+  if(!CANDIDATES.length){ list.innerHTML = `<div class="empty">No domain-valid ${state.mtype} target found in this user's candidate pool.</div>`; return; }
+  list.innerHTML = CANDIDATES.map(c=>`
+    <div class="cand-row" data-pid="${c.product_id}">
+      <div><b>${c.name}</b></div>
+      <div class="r">${c.category} · ${c.brand} · ${c.department} &nbsp;→&nbsp; ${c.mutated_category ?? "∅"} · ${c.mutated_brand ?? "∅"} &nbsp;|&nbsp; relevance ${c.user_relevance}</div>
+    </div>`).join("");
+  list.querySelectorAll(".cand-row").forEach(row=>row.addEventListener("click", ()=>{
+    list.querySelectorAll(".cand-row").forEach(x=>x.classList.remove("sel"));
+    row.classList.add("sel");
+    state.product_id = parseInt(row.dataset.pid);
+    document.getElementById("runBtn").disabled = false;
+  }));
+}
+
+async function runTest(){
+  renderStepper(2);
+  document.getElementById("runNote").textContent = "Running recommender on original and mutated KG…";
+  document.getElementById("resultsCard").innerHTML = `<div class="empty">Running mutation test…</div>`;
+  const r = await fetch(`${API}/run-test`, {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({user_id: state.user_id, mutation_type: state.mtype, product_id: state.product_id})});
+  const data = await r.json();
+  document.getElementById("runNote").textContent = "";
+  if(data.error){ document.getElementById("resultsCard").innerHTML = `<div class="empty">${data.error}</div>`; return; }
+  renderStepper(5);
+  renderResults(data);
+}
+
+function attrNode(x, dim){ return x ?? (dim? "∅ (removed)" : "∅"); }
+
+function kgSvg(prod, cat, brand, dept, changedCat, changedBrand){
+  const catColor = changedCat ? (cat? "edge-added":"edge-removed") : "edge-same";
+  const brandColor = changedBrand ? (brand? "edge-added":"edge-removed") : "edge-same";
+  return `
+  <svg viewBox="0 0 320 220">
+    <circle cx="160" cy="110" r="26" fill="#4338ca" />
+    <text x="160" y="114" text-anchor="middle" fill="white" font-size="10" font-weight="700">Product</text>
+    <line x1="160" y1="90" x2="160" y2="30" class="${catColor}" stroke-width="2"/>
+    <circle cx="160" cy="22" r="18" fill="#eef0fd" stroke="#4338ca"/>
+    <text x="160" y="26" text-anchor="middle" class="node-txt">Cat</text>
+    <text x="160" y="0" text-anchor="middle" class="node-txt">${attrNode(cat, changedCat && !cat)}</text>
+
+    <line x1="185" y1="120" x2="270" y2="150" class="${brandColor}" stroke-width="2"/>
+    <circle cx="284" cy="158" r="18" fill="#eef0fd" stroke="#4338ca"/>
+    <text x="284" y="162" text-anchor="middle" class="node-txt">Brand</text>
+    <text x="284" y="186" text-anchor="middle" class="node-txt">${attrNode(brand, changedBrand && !brand)}</text>
+
+    <line x1="136" y1="122" x2="55" y2="155" class="edge-same" stroke-width="2"/>
+    <circle cx="42" cy="163" r="18" fill="#eef0fd" stroke="#4338ca"/>
+    <text x="42" y="167" text-anchor="middle" class="node-txt">Dept</text>
+    <text x="42" y="191" text-anchor="middle" class="node-txt">${dept}</text>
+
+    <text x="160" y="205" text-anchor="middle" class="node-txt dim">${prod}</text>
+  </svg>`;
+}
+
+function renderResults(d){
+  const card = document.getElementById("resultsCard");
+  const m = d.metrics, a = d.anomaly;
+  const changedCat = d.kg_change.original.category !== d.kg_change.mutated.category;
+  const changedBrand = d.kg_change.original.brand !== d.kg_change.mutated.brand;
+
+  const brChips = Object.entries(d.behavioral_relations).map(([k,v])=>
+    `<div class="br-chip ${v.violated?'fired':'ok'}"><b>${k}</b><br>${v.name}<br>${v.violated?'VIOLATED':'expected'}</div>`).join("");
+
+  const top10Row = p => `
+    <div class="p-row ${p.status}">
+      <span class="rank">${p.mutated_rank ?? p.orig_rank ?? "–"}</span>
+      <span>${p.name}</span>
+      <span class="badge" style="background:transparent;color:inherit;">${p.status.replace('_',' ')}</span>
+    </div>`;
+
+  const cutoffPct = Math.min(100, a.frozen_cutoff*100);
+  const scorePct = Math.min(100, a.statistical_score*100);
+
+  card.innerHTML = `
+    <div class="anomaly-banner ${a.verdict==='ANOMALOUS'?'anom':'non'}">
+      <div>
+        <div class="subtag">Testing result for ${d.mutation_name} (${d.mutation_type}) on User ${d.user.user_id}, Product ${d.target_product.product_id}</div>
+        <div class="verdict">${a.verdict==='ANOMALOUS' ? 'ANOMALOUS — warrants investigation' : 'NON-ANOMALOUS'}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:22px;font-weight:800;">${a.statistical_score}</div>
+        <div class="note">statistical anomaly score (cutoff ${a.frozen_cutoff})</div>
+      </div>
+    </div>
+    <div class="bar-wrap">
+      <div class="bar-fill" style="width:${scorePct}%"></div>
+      <div class="cutoff-mark" style="left:${cutoffPct}%"></div>
+    </div>
+    <div class="note">Frozen anomaly cutoff = development-sample 90th percentile of the statistical anomaly score (never recalibrated on this run).</div>
+
+    <h2 style="margin-top:22px;">Knowledge Graph — before vs after mutation</h2>
+    <div class="kg-wrap">
+      <div class="kg-box"><h4>Original KG</h4>${kgSvg(d.target_product.name, d.kg_change.original.category, d.kg_change.original.brand, d.kg_change.original.department, false, false)}</div>
+      <div class="kg-box"><h4>Mutated KG (${d.mutation_type})</h4>${kgSvg(d.target_product.name, d.kg_change.mutated.category, d.kg_change.mutated.brand, d.kg_change.mutated.department, changedCat, changedBrand)}</div>
+    </div>
+
+    <h2 style="margin-top:22px;">Top-10 recommendations — original vs mutated</h2>
+    <div class="top10-wrap">
+      <div class="top10-col"><h4>Original Top-10</h4>${d.top10.original.map((p,i)=>top10Row({...p,status:'unchanged',orig_rank:i+1})).join("")}</div>
+      <div class="top10-col"><h4>Mutated Top-10 (ranked, with change status)</h4>${d.top10.diff.filter(r=>r.mutated_rank).map(top10Row).join("")}
+      ${d.top10.diff.filter(r=>!r.mutated_rank).map(top10Row).join("")}</div>
+    </div>
+
+    <h2 style="margin-top:22px;">Behavioural metrics</h2>
+    <div class="metrics-grid">
+      <div class="metric"><div class="v">${m.ranking_change}</div><div class="l">Ranking change (1−RBO) · ${m.ranking_change_level}</div></div>
+      <div class="metric"><div class="v">${m.semantic_shift}</div><div class="l">Semantic (category) shift</div></div>
+      <div class="metric"><div class="v">${m.diversity_shift}</div><div class="l">Diversity shift (entropy Δ) ${m.diversity_decreased?'↓':''}</div></div>
+      <div class="metric"><div class="v">${m.locality_applicable? m.locality : "n/a"}</div><div class="l">Locality ${m.locality_applicable?'':'(not applicable)'}</div></div>
+    </div>
+    <div class="br-grid">${brChips}</div>
+
+    <h2 style="margin-top:22px;">Why? — Interpretation</h2>
+    <div class="interp">${d.interpretation}</div>
+  `;
+}
+
+init();
+</script>
+</body>
+</html>
